@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Person Chat in One Window</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f1f1f1;
+        }
+
+        .chat-container {
+            width: 600px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .messages {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .input-box {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        .input-box input {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .input-box button {
+            width: 15%;
+            padding: 10px;
+            margin-left: 10px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .input-box button:hover {
+            background-color: #45a049;
+        }
+
+        .message {
+            padding: 8px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+
+        .person1-message {
+            background-color: #e0f7fa;
+            text-align: left;
+        }
+
+        .person2-message {
+            background-color: #fce4ec;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Two-Person Chat</h2>
+        
+        <!-- Messages area -->
+        <div id="messages" class="messages"></div>
+        
+        <!-- Person 1 Input -->
+        <div class="input-box">
+            <input id="person1-content" type="text" placeholder="Person 1, type a message...">
+            <button onclick="sendMessage('person1')">Send</button>
+        </div>
+        
+        <!-- Person 2 Input -->
+        <div class="input-box">
+            <input id="person2-content" type="text" placeholder="Person 2, type a message...">
+            <button onclick="sendMessage('person2')">Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+    <script>
+        let stompClient;
+
+        // Connect to WebSocket
+        const socket = new SockJS('/chat');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function() {
+            // Subscribe to messages for Person 1
+            stompClient.subscribe('/topic/messages/person1', function(message) {
+                const messageContent = JSON.parse(message.body);
+                displayMessage(messageContent, 'person2');
+            });
+
+            // Subscribe to messages for Person 2
+            stompClient.subscribe('/topic/messages/person2', function(message) {
+                const messageContent = JSON.parse(message.body);
+                displayMessage(messageContent, 'person1');
+            });
+        });
+
+        // Send a message based on the sender
+        function sendMessage(person) {
+            const messageContent = document.getElementById(person + '-content').value;
+            const sender = person === 'person1' ? 'Person 1' : 'Person 2';
+            const recipient = person === 'person1' ? 'person2' : 'person1';
+
+            const message = { sender, recipient, content: messageContent };
+
+            // Send the message to the backend
+            stompClient.send("/app/message", {}, JSON.stringify(message));
+
+            // Display the message in the sender's message area
+            displayMessage(message, person);
+
+            // Clear the input field
+            document.getElementById(person + '-content').value = '';
+        }
+
+        // Display the message in the chat box (differentiating sender/receiver)
+        function displayMessage(message, person) {
+            const messageArea = document.getElementById("messages");
+            const messageItem = document.createElement('div');
+            messageItem.classList.add('message');
+            messageItem.classList.add(person === 'person1' ? 'person1-message' : 'person2-message');
+            messageItem.textContent = `${message.sender}: ${message.content}`;
+            messageArea.appendChild(messageItem);
+
+            // Scroll to the bottom of the message area
+            messageArea.scrollTop = messageArea.scrollHeight;
+        }
+    </script>
+</body>
+</html>
